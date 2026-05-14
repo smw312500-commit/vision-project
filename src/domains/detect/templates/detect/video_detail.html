@@ -1,0 +1,243 @@
+{% extends 'detect/base.html' %}
+{% block title %}Video detail{% endblock %}
+{% block content %}
+<style>
+    .video-box {
+        background: #f8f9fa;
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        padding: 15px;
+        text-align: center;
+        height: auto;
+        overflow: hidden;
+    }
+
+    .video-box video {
+        display: block;
+        margin: 0 auto;
+        max-width: 100%;
+        max-height: 420px;
+        border-radius: 8px;
+    }
+
+    .video-placeholder {
+        height: 420px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #777;
+        font-size: 14px;
+        background: #fafafa;
+        border: 1px dashed #ccc;
+        border-radius: 8px;
+    }
+</style>
+
+<form enctype="multipart/form-data" id="detect_form" method="post" novalidate>
+    {{ form.csrf_token }}
+    {{ form.video_id() }}
+    {% for message in get_flashed_messages() %}
+    <span>{{ message }}</span>
+    {% endfor %}
+    <div class="d-flex align-items-center gap-2 mb-3">
+        <div style="min-width:220px;">
+            {{ form.model(class="form-control", id="model_select") }}
+        </div>
+        <div class="btn-group" id="detected_buttons">
+            <button class="btn btn-primary" type="submit">탐지</button>
+        </div>
+    </div>
+    <div class="row row-cols-1 row-cols-xl-2 g-4">
+        <!-- 원본 동영상 -->
+        <div class="col">
+            <div class="video-box shadow-sm">
+                <div class="fw-bold mb-2 text-dark">원본 동영상</div>
+                <video controls
+                       src="{{ url_for('detect.videos', filename=user_video.video_path) }}">
+                </video>
+            </div>
+        </div>
+        <!-- 감지된 동영상 -->
+        <div class="col">
+            <div class="video-box shadow-sm">
+                <div class="fw-bold mb-2 text-dark">감지된 동영상</div>
+                <video controls hidden id="detected_video"></video>
+                <!-- 처리 상태 영역 -->
+                <div class="video-placeholder" id="detected_spinner">
+                    <div class="d-flex flex-column align-items-center gap-2">
+                        <div class="spinner-border d-none" id="loading_spinner" role="status"></div>
+                        <div id="detect_message">감지된 동영상이 없습니다.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+<div class="mt-3 mb-4">
+    <a class="btn btn-outline-dark"
+       href="{{ url_for('detect.video_dashboard') }}"
+       style="font-size: 0.85rem; padding: 7px 16px; border-radius: 6px;">
+        ← 영상 목록으로 돌아가기
+    </a>
+</div>
+<script>
+    const model_select = document.getElementById('model_select');
+    const detect_form = document.getElementById('detect_form');
+    const detected_video = document.getElementById('detected_video');
+    const detected_spinner = document.getElementById('detected_spinner');
+    const detected_buttons = document.getElementById('detected_buttons');
+    const loading_spinner = document.getElementById('loading_spinner');
+    const detect_message = document.getElementById('detect_message');
+
+    let detect_interval = null;
+
+    model_select.addEventListener('change', (e) => {
+        model_select.value = e.target.value;
+        clear_interval()
+        set_interval()
+    })
+
+    detect_form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const form_data = new FormData(detect_form)
+
+        const response = await fetch("{{ url_for('detect.video_detail', video_id=user_video.id) }}", {
+            method: 'POST',
+            headers: {
+                "X-CSRFToken": form_data.get("csrf_token"),
+            },
+            body: form_data
+        })
+
+        if (response.ok) {
+            const json = await response.json()
+            // await set_interval(json["result_id"], json["video_path"])
+            await set_interval()
+        } else {
+            console.error(response)
+        }
+    })
+
+    const check_task = async () => {
+        const form = new FormData(detect_form)
+
+        const data = {
+            "video_id": "{{ user_video.id }}",
+            "model": model_select.value,
+        }
+
+        const response = await fetch("{{ url_for('detect.check_task') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                "X-CSRFToken": form.get("csrf_token"),
+            },
+            body: JSON.stringify(data),
+        })
+
+        if (response.ok) {
+            return await response.json()
+        } else {
+            const error = await response.json();
+            console.error(error)
+            change_detect_status("NONE")
+        }
+    }
+
+    const set_interval = async () => {
+        const check = async () => {
+            try {
+                const task_response = await check_task()
+                console.log(task_response)
+                switch (task_response.status) {
+                    case "NONE":
+                        change_detect_status(task_response.status)
+                        return true;
+                    case "PENDING":
+                    case "STARTED":
+                        change_detect_status(task_response.status)
+                        return false;
+                    case "FAILURE":
+                        clear_interval()
+                        change_detect_status(task_response.status)
+                        return true;
+                    case "SUCCESS":
+                        clear_interval()
+                        change_detect_status(task_response.status, `{{ url_for('detect.videos', filename='') }}${task_response.video_path}`)
+                        return true;
+                    default:
+                        clear_interval()
+                        break;
+                }
+            } catch (e) {
+                console.error(e)
+                clear_interval()
+                return true
+            }
+        }
+
+        if (!await check()) {
+            detect_interval = setInterval(async () => {
+                await check()
+            }, 1000 * 5)
+        }
+    }
+
+    const clear_interval = () => {
+        if (detect_interval) {
+            clearInterval(detect_interval)
+        }
+    }
+
+    const change_detect_status = (status, src) => {
+        switch (status) {
+            case "NONE":
+                // 최초 진입 상태
+                detected_buttons.hidden = false;
+
+                detected_video.hidden = true;
+                detected_spinner.hidden = false;
+
+                loading_spinner.classList.add('d-none');
+                detect_message.innerText = "감지된 동영상이 없습니다.";
+                break;
+            case "PENDING":
+            case "STARTED":
+                // 탐지 버튼 눌렀을 때
+                detected_buttons.hidden = true;
+
+                detected_video.hidden = true;
+                detected_spinner.hidden = false;
+
+                loading_spinner.classList.remove('d-none');
+                detect_message.innerText = "Loading...";
+                break;
+            case "FAILURE":
+                // 탐지 로직 실패
+                detected_buttons.hidden = false;
+
+                detected_video.hidden = true;
+                detected_spinner.hidden = false;
+
+                loading_spinner.classList.add('d-none');
+                detect_message.innerText = "다시 시도해주세요.";
+                break;
+            case "SUCCESS":
+                // 처리 완료
+                detected_buttons.hidden = true;
+
+                detected_spinner.hidden = true;
+                detected_video.hidden = false;
+                detected_video.src = src;
+                break;
+        }
+    };
+
+
+    window.onload = () => {
+        set_interval()
+    }
+</script>
+{% endblock %}

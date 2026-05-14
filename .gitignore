@@ -1,0 +1,14 @@
+.env
+__pycache__/
+*.py[cod]
+*.pyo
+instance/
+migrations/
+uploads/
+.venv/
+*.egg-info/
+dist/
+.ruff_cache/
+*.sqlite
+*.db
+uv.lock

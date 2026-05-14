@@ -1,0 +1,155 @@
+{% extends 'detect/base.html' %}
+{% block title %}Image detail{% endblock %}
+{% block content %}
+<style>
+    .image-box {
+        background: #f8f9fa;
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        padding: 15px;
+        text-align: center;
+        height: auto;
+        overflow: hidden;
+    }
+
+    .image-box img {
+        display: block;
+        margin: 0 auto;
+        max-width: 100%;
+        max-height: 420px;
+        object-fit: contain;
+        border-radius: 8px;
+    }
+
+    .placeholder-box {
+        height: 420px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #777;
+        font-size: 14px;
+        background: #fafafa;
+        border: 1px dashed #ccc;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+</style>
+
+<form enctype="multipart/form-data" id="detect_form" method="post" novalidate>
+    {{ form.csrf_token }}
+    {{ form.image_id }}
+    {% for message in get_flashed_messages() %}
+    <span>{{ message }}</span>
+    {% endfor %}
+    <div class="d-flex align-items-center gap-2 mb-3">
+        <div style="min-width:220px;">
+            {{ form.model(class="form-control", id="model_select") }}
+        </div>
+
+        <div class="btn-group" id="detected_buttons">
+            <button class="btn btn-primary" type="submit">탐지</button>
+        </div>
+    </div>
+
+    <div class="row row-cols-1 row-cols-xl-2 g-4">
+        <!-- 원본 이미지 -->
+        <div class="col">
+            <div class="image-box shadow-sm">
+                <div class="fw-bold mb-2 text-dark">원본 이미지</div>
+                <img alt="원본 이미지" src="{{ url_for('detect.images', filename=user_image.image_path) }}">
+            </div>
+        </div>
+        <!-- 감지된 이미지 -->
+        <div class="col">
+            <div class="image-box shadow-sm">
+                <div class="fw-bold mb-2 text-dark">감지된 이미지</div>
+
+                <img alt="감지 이미지" hidden id="detected_image" src="">
+
+                <div class="placeholder-box" id="image_placeholder">
+                    아직 감지된 이미지가 없습니다.
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+<div class="mt-3 mb-4">
+    <a class="btn btn-outline-dark"
+       href="{{ url_for('detect.image_dashboard') }}"
+       style="font-size: 0.85rem; padding: 7px 16px; border-radius: 6px;">
+        ← 이미지 목록으로 돌아가기
+    </a>
+</div>
+
+<script>
+    const model_select = document.getElementById('model_select');
+    const detect_form = document.getElementById('detect_form');
+    const detected_image = document.getElementById('detected_image');
+    const detected_buttons = document.getElementById('detected_buttons');
+    const image_placeholder = document.getElementById('image_placeholder');
+
+    detect_form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        detected_image.hidden = true;
+        image_placeholder.hidden = false;
+        detected_buttons.hidden = false;
+
+        const form_data = new FormData(detect_form)
+
+        const response = await fetch("{{ url_for('detect.image_detail', image_id=user_image.id) }}", {
+            method: 'POST',
+            body: form_data
+        })
+        if (response.ok) {
+            const json = await response.json()
+            console.log(json)
+            await get_detected_image()
+        } else {
+            console.error(response)
+        }
+    })
+
+    const get_detected_image = async () => {
+
+        const params = new URLSearchParams();
+        params.append("model", model_select.value);
+
+        const response = await fetch(`{{ url_for('detect.image_status', image_id=user_image.id) }}?${params}`)
+
+        if (response.ok) {
+            const json = await response.json()
+            console.log(json)
+            change_status(json.status, `{{ url_for('detect.images', filename='') }}${json.image_path}`)
+        } else {
+            console.error(response)
+        }
+    }
+
+    const change_status = (status, src) => {
+        switch (status) {
+            case "NONE":
+                detected_buttons.hidden = false;
+                detected_image.hidden = true;
+                image_placeholder.hidden = false;
+                break;
+            case "SUCCESS":
+                detected_buttons.hidden = true;
+                detected_image.hidden = false;
+                detected_image.src = src + "?t=" + new Date().getTime();
+                image_placeholder.hidden = true;
+                break;
+        }
+    }
+
+    model_select.addEventListener('change', (e) => {
+        model_select.value = e.target.value;
+        get_detected_image()
+    })
+
+    window.onload = () => {
+        get_detected_image()
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,85 @@
+{% extends "root/base.html" %}
+{% block title %}Watchtower{% endblock %}
+
+{% block content %}
+<style>
+
+    @keyframes fadeUp {
+        0% {
+            opacity: 0;
+        }
+        100% {
+            opacity: 1;
+        }
+    }
+
+    @keyframes fadeIn {
+        0% {
+            opacity: 0;
+        }
+        100% {
+            opacity: 1;
+        }
+    }
+
+    #bg-video {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        object-fit: cover;
+        z-index: -1;
+    }
+
+    .title-wrap {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(1);
+        transform-origin: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 0 5vw;
+        box-sizing: border-box;
+        max-width: 100vw;
+    }
+
+    @media (max-width: 1200px) {
+        .title-wrap {
+            transform: translate(-50%, -50%) scale(0.9);
+        }
+    }
+
+    @media (max-width: 992px) {
+        .title-wrap {
+            transform: translate(-50%, -50%) scale(0.8);
+        }
+    }
+
+    @media (max-width: 768px) {
+        .title-wrap {
+            transform: translate(-50%, -50%) scale(0.7);
+        }
+    }
+
+    @media (max-width: 576px) {
+        .title-wrap {
+            transform: translate(-50%, -50%) scale(0.6);
+        }
+    }
+
+</style>
+
+<video autoplay id="bg-video" loop muted>
+    <source src="{{ url_for('static', filename='City2.mp4') }}" type="video/mp4">
+</video>
+
+<div class="video-overlay"></div>
+
+<div class="title-wrap">
+    <div class="main-title">교통 이상 징후 감지 시스템</div>
+    <div class="sub-title">WatchTower-AI</div>
+</div>
+{% endblock %}

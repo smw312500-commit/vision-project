@@ -1,0 +1,40 @@
+{% set title = title|default(_fsdomain('Login')) %}
+{% extends "base.html" %}
+{% from "security/_macros.html" import render_field_with_errors, render_field, render_field_errors, render_form_errors, prop_next %}
+
+{% block content %}
+{% include "security/_messages.html" %}
+
+<div class="row justify-content-center w-100 h-100">
+    <div class="col-6">
+        <div class="card shadow">
+            <div class="card-body">
+                <h1 class="card-title">로그인</h1>
+                <form action="{{ url_for_security('login') }}{{ prop_next() }}" method="post" name="login_user_form">
+                    {{ login_user_form.hidden_tag() }}
+                    {{ render_form_errors(login_user_form) }}
+
+                    <div class="form-floating mb-3">
+                        {{ login_user_form.email(class="form-control", id="formEmail", placeholder="name@example.com")
+                        }}
+                        <label class="form-label" for="formEmail">이메일 주소</label>
+                    </div>
+
+                    <div class="form-floating mb-3">
+                        {{ login_user_form.password(class="form-control", id="formPassword", placeholder="Password") }}
+                        <label class="form-label" for="formPassword">비밀번호</label>
+                    </div>
+
+                    <div class="form-check mb-3">
+                        {{ login_user_form.remember(class="form-check-input", id="formRemember") }}
+                        <label class="form-check-label" for="formRemember">Remember Me</label>
+                    </div>
+
+                    {{ render_field_errors(login_user_form.csrf_token) }}
+                    {{ login_user_form.submit(class="btn btn-primary") }}
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}

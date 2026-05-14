@@ -1,0 +1,88 @@
+{% extends 'detect/base.html' %}
+{% block title %}동영상 업로드{% endblock %}
+
+{% block content %}
+<style>
+    .glass-card {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 25px;
+        margin-bottom: 25px;
+        border: 1px solid #ddd;
+    }
+
+    .glass-title {
+        font-size: 20px;
+        color: #222;
+        font-weight: 700;
+        margin-bottom: 18px;
+    }
+
+    .form-control {
+        background: #f5f5f5;
+        color: #000;
+        border: 1px solid #ccc;
+    }
+
+    .form-control:focus {
+        border-color: #0095ff;
+        box-shadow: 0 0 6px rgba(0, 149, 255, 0.5);
+        color: #000;
+    }
+
+    .upload-btn {
+        background: #007bff;
+        border: none;
+        font-weight: 600;
+        padding: 10px;
+        border-radius: 8px;
+        color: #fff;
+    }
+
+    .upload-btn:hover {
+        background: #0a84ff;
+    }
+
+    .dt-auth-flash {
+        display: block;
+        margin-bottom: 10px;
+        color: #0a58ca;
+        font-weight: 600;
+    }
+</style>
+
+<div class="container mt-4">
+
+    <div class="glass-card">
+        <div class="glass-title">동영상 업로드</div>
+
+        <form enctype="multipart/form-data" method="post" novalidate>
+            {{ form.csrf_token }}
+
+            {% for message in get_flashed_messages() %}
+            <span class="dt-auth-flash">{{ message }}</span>
+            {% endfor %}
+
+            <label>업로드할 동영상 선택</label>
+            {{ form.video(class="form-control mb-3") }}
+
+            {% for error in form.video.errors %}
+            <div class="text-danger small">{{ error }}</div>
+            {% endfor %}
+
+            <button class="btn upload-btn w-100" type="submit">
+                업로드
+            </button>
+        </form>
+    </div>
+
+    <div class="mt-3 mb-4">
+        <a class="btn btn-outline-dark"
+           href="{{ url_for('detect.video_dashboard') }}"
+           style="font-size: 0.85rem; padding: 7px 16px; border-radius: 6px;">
+            ← 동영상 목록으로 돌아가기
+        </a>
+    </div>
+
+</div>
+{% endblock %}
